@@ -63,7 +63,7 @@ impl Automate {
     pub fn handle_event(&mut self, event: Event) {
         match (&self.state, event) {
             (State::Created, Event::Start) => {
-                println!("Automate started.");
+                log::info!("Automate started.");
                 self.state = State::Idle; // Exemple de transition
             },
             (State::Idle, Event::Stop) => {
@@ -76,7 +76,7 @@ impl Automate {
 
     /// Exemple d'action : diagnostique réseau.
     fn diagnose_network(&mut self)  {
-        println!("Diagnosing network...");
+        log::info!("Diagnosing network...");
         self.counters.increment("diagnose_network");
 
     // let resultat =
@@ -89,21 +89,21 @@ impl Automate {
     }
 
     fn initialize(&mut self)  {
-        println!("Initializing...");
+        log::info!("Initializing...");
         self.counters.increment("initialize");
 
         self.state = State::Initialized;
     }
 
     fn loggin(&mut self)  {
-        println!("Logging...");
+        log::info!("Logging...");
         self.counters.increment("loggin");
 
         self.state = State::Connected;
     }
 
     fn read_description(&mut self)  {
-        println!("reading description...");
+        log::info!("reading description...");
         self.counters.increment("loggin");
 
 
@@ -111,7 +111,7 @@ impl Automate {
     }
 
     fn read_values(&mut self)  {
-        println!("Read_values en cours...");
+        log::info!("Read_values en cours...");
         self.counters.increment("read_values");
 
         // Simuler la lecture des valeurs
@@ -124,7 +124,9 @@ impl Automate {
     }
 
     fn logoff(&mut self)  {
-        // Transition to Ready
+        log::info!("Logoff...");
+        self.counters.increment("logoff");
+
         self.state = State::Idle;
     }
 }

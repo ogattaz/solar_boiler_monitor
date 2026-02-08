@@ -1,5 +1,7 @@
 mod queue;
 
+use log::LevelFilter;
+use fern::colors::{ColoredLevelConfig, Color};
 use std::sync::Arc;
 use home_automation::automate::{Automate, Event};
 use home_automation::timeseries::processor;
@@ -10,6 +12,11 @@ use std::time::Duration;
 use home_automation::timeseries::processor::RawData;
 
 fn main() {
+
+    init_logger().expect("TODO: panic message");
+
+    log::info!("Begin");
+
     // Créer une file FIFO partagée
     let queue = Arc::new(Queue::new());
 
@@ -58,4 +65,39 @@ fn main() {
     // Attendre la fin des threads (exemple : Ctrl+C pour arrêter)
     automate_handle.join().unwrap();
     processor_handle.join().unwrap();
+
+    log::info!("End");
+}
+
+
+fn init_logger() -> Result<(), fern::InitError> {
+
+    // Configuration des couleurs pour les niveaux de log
+    let colors = ColoredLevelConfig::new()
+        .error(Color::Red)
+        .warn(Color::Yellow)
+        .info(Color::Green)
+        .debug(Color::Blue)
+        .trace(Color::BrightBlack);
+
+    // Configuration du logger avec `fern`
+    fern::Dispatch::new()
+        .format(move |out, message, record| {
+            out.finish(format_args!(
+                "[{} {} {}] {}",
+                chrono::Local::now().format("%H:%M:%S"),  // Timestamp
+                colors.color(record.level()),           // Niveau de log coloré
+                record.target(),                       // Module source
+                message                                // Message
+            ))
+        })
+        .level(LevelFilter::Debug)  // Niveau minimal de log
+        .chain(std::io::stdout())   // Destination : stdout
+        .apply()?;                   // Applique la configuration
+
+    log::info!("Logger initialisé avec Fern et Chrono");
+    log::debug!("Ceci est un message de debug");
+    log::error!("Ceci est une erreur");
+
+    Ok(())
 }
