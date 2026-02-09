@@ -1,21 +1,26 @@
 mod queue;
 
-use log::LevelFilter;
-use fern::colors::{ColoredLevelConfig, Color};
-use std::sync::Arc;
+use clap::Parser;
+use fern::colors::{Color, ColoredLevelConfig};
 use home_automation::automate::{Automate, Event};
-use home_automation::timeseries::processor;
-use home_automation::victoriametrics::{VMClient, Metric};
+use home_automation::config::AppMonitorConfig;
 use home_automation::queue::{Queue, Value};
+use home_automation::timeseries::processor;
+use home_automation::timeseries::processor::RawData;
+use home_automation::victoriametrics::{Metric, VMClient};
+use log::LevelFilter;
+use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
-use home_automation::timeseries::processor::RawData;
 
 fn main() {
+    
+    // clap parses the command line arguments into a Config object.
+    let config = AppMonitorConfig::parse();
 
-    init_logger().expect("TODO: panic message");
+    init_logger(config.log_level).expect("TODO: panic message");
 
-    log::info!("Begin");
+    log::info!("{}", config.print());
 
     // Créer une file FIFO partagée
     let queue = Arc::new(Queue::new());
@@ -36,26 +41,8 @@ fn main() {
         loop {
             if !queue.is_empty() {
                 if let Some(value) = queue.dequeue() {
-
                     let raw_data = RawData::from(value);
-                    // Traiter la valeur en TimeSeries
-                    let processed_data = processor::process_data(raw_data);
 
-                    // Convertir en métriques VictoriaMetrics
-                    // let metrics: Vec<Metric> = processed_data
-                    //     .into_iter()
-                    //     .map(|(name, value, timestamp)| {
-                    //         let mut metric = Metric::new(&name, value, timestamp);
-                    //         metric.add_label("source", "home_automation");
-                    //         metric
-                    //     })
-                    //     .collect();
-
-                    // Envoyer les métriques (blocage car pas dans un contexte async)
-                    // En pratique, il faudrait utiliser un runtime Tokio dans un thread dédié
-                    // ou utiliser un canal pour communiquer avec un thread async.
-                    // Ici, on simule simplement l'envoi.
-                    //println!("Envoi des métriques: {:?}", metrics);
                 }
             }
             thread::sleep(Duration::from_secs(1));
@@ -69,9 +56,7 @@ fn main() {
     log::info!("End");
 }
 
-
-fn init_logger() -> Result<(), fern::InitError> {
-
+fn init_logger(levelFilter: LevelFilter) -> Result<(), fern::InitError> {
     // Configuration des couleurs pour les niveaux de log
     let colors = ColoredLevelConfig::new()
         .error(Color::Red)
@@ -85,15 +70,15 @@ fn init_logger() -> Result<(), fern::InitError> {
         .format(move |out, message, record| {
             out.finish(format_args!(
                 "[{} {} {}] {}",
-                chrono::Local::now().format("%H:%M:%S"),  // Timestamp
-                colors.color(record.level()),           // Niveau de log coloré
-                record.target(),                       // Module source
-                message                                // Message
+                chrono::Local::now().format("%H:%M:%S"), // Timestamp
+                colors.color(record.level()),            // colored log level
+                record.target(),                         // Module source
+                message                                  // Message
             ))
         })
-        .level(LevelFilter::Debug)  // Niveau minimal de log
-        .chain(std::io::stdout())   // Destination : stdout
-        .apply()?;                   // Applique la configuration
+        .level(levelFilter) // Niveau minimal de log
+        .chain(std::io::stdout()) // Destination : stdout
+        .apply()?; // Applique la configuration
 
     log::info!("Logger initialisé avec Fern et Chrono");
     log::debug!("Ceci est un message de debug");
