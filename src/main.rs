@@ -1,20 +1,21 @@
 mod queue;
 
 use clap::Parser;
+use ctrlc;
 use fern::colors::{Color, ColoredLevelConfig};
 use home_automation::automate::{Automate, Event};
 use home_automation::config::AppMonitorConfig;
 use home_automation::queue::{Queue, Value};
 use home_automation::timeseries::processor;
-use home_automation::timeseries::processor::RawData;
+use home_automation::timeseries::processor::{Processor, RawData};
 use home_automation::victoriametrics::{Metric, VMClient};
 use log::LevelFilter;
+use signal_hook::{consts::SIGINT, iterator::Signals};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
-use std::time::Duration;
 
 fn main() {
-    
     // clap parses the command line arguments into a Config object.
     let config = AppMonitorConfig::parse();
 
@@ -25,31 +26,35 @@ fn main() {
     // Créer une file FIFO partagée
     let queue = Arc::new(Queue::new());
 
-    // Instancier l'automate avec la Queue
+    // Flag pour indiquer aux threads de s'arrêter
+    let running = Arc::new(AtomicBool::new(true));
+
+    // Clone the running flag for each thread
+    let running_automate = Arc::clone(&running);
+    let running_processor = Arc::clone(&running);
+
     let mut automate = Automate::new(Arc::clone(&queue));
 
-    // Lancer l'automate dans un thread
     let automate_handle = thread::spawn(move || {
-        automate.run();
+        automate.run(running_automate);
     });
 
-    // Instancier le client VictoriaMetrics
     let vm_client = VMClient::new("http://localhost:8428");
 
-    // Instancier et lancer le processeur dans un autre thread
-    let processor_handle = thread::spawn(move || {
-        loop {
-            if !queue.is_empty() {
-                if let Some(value) = queue.dequeue() {
-                    let raw_data = RawData::from(value);
+    let mut processor = Processor::new(Arc::clone(&queue));
 
-                }
-            }
-            thread::sleep(Duration::from_secs(1));
-        }
+    let processor_handle = thread::spawn(move || {
+        processor.run(running_processor);
     });
 
-    // Attendre la fin des threads (exemple : Ctrl+C pour arrêter)
+    ctrlc::set_handler(move || {
+        log::info!("Received SIGINT, shutting down gracefully...");
+        Arc::clone(&running).store(false, Ordering::Relaxed);
+    })
+    .expect("Error setting Ctrl-C handler");
+
+    log::info!("Waiting for gracefully...");
+
     automate_handle.join().unwrap();
     processor_handle.join().unwrap();
 
