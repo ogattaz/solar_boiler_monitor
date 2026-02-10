@@ -1,23 +1,21 @@
 use clap::Parser;
 use ctrlc;
 use fern::colors::{Color, ColoredLevelConfig};
-use home_automation::automate::{Automate, Event};
+use home_automation::automate::Automate;
 use home_automation::config::AppMonitorConfig;
 use home_automation::queue::Value;
-use home_automation::timeseries::processor;
-use home_automation::timeseries::processor::{Processor, RawData};
-use home_automation::victoriametrics::{Metric, VMClient};
+use home_automation::timeseries::processor::Processor;
+use home_automation::victoriametrics::VMClient;
 use log::LevelFilter;
-use signal_hook::{consts::SIGINT, iterator::Signals};
-use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread;
 
 fn main() {
-    // clap parses the command line arguments into a Config object.
+    // Parse the command line arguments into a Config object.
     let config = AppMonitorConfig::parse();
 
-    init_logger(config.log_level).expect("TODO: panic message");
+    init_logger(config.log_level).expect("Failed to initialize logger");
 
     log::info!("{}", config.print());
 
@@ -45,13 +43,17 @@ fn main() {
         processor.run(running_processor);
     });
 
-    ctrlc::set_handler(move || {
-        log::info!("Received SIGINT, shutting down gracefully...");
-        Arc::clone(&running).store(false, Ordering::Relaxed);
+    // Configure Ctrl+C handler
+    ctrlc::set_handler({
+        let running = Arc::clone(&running);
+        move || {
+            log::info!("Received SIGINT, shutting down gracefully...");
+            running.store(false, Ordering::Relaxed);
+        }
     })
     .expect("Error setting Ctrl-C handler");
 
-    log::info!("Waiting for gracefully...");
+    log::info!("Waiting for threads to finish...");
 
     automate_handle.join().unwrap();
     processor_handle.join().unwrap();

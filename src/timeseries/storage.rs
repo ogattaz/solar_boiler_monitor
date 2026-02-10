@@ -10,8 +10,7 @@ pub fn store_locally(data: &[(String, f64, u64)], file_path: &str) -> Result<(),
     let mut file = File::create(path).map_err(|e| e.to_string())?;
 
     for (metric, value, timestamp) in data {
-        writeln!(file, "{},{},{}", metric, value, timestamp)
-            .map_err(|e| e.to_string())?;
+        writeln!(file, "{},{},{}", metric, value, timestamp).map_err(|e| e.to_string())?;
     }
 
     Ok(())

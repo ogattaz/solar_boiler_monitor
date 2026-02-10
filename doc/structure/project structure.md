@@ -30,3 +30,19 @@ src/
     ├── client.rs            # Client HTTP pour VictoriaMetrics
     └── models.rs            # Modèles de données pour les métriques
 ```
+
+```txt
+tests/                     # <-- Dossier pour les tests d'intégration
+├── automate/              # Tests pour le module automate
+│   ├── mod.rs             # Tests pour automate/mod.rs
+│   ├── machine.rs         # Tests pour automate/machine.rs
+│   └── actions/           # Tests pour les actions
+│       ├── diagnostic.rs
+│       └── ...
+├── timeseries/            # Tests pour le module timeseries
+│   ├── processor.rs
+│   └── ...
+└── victoriametrics/       # Tests pour le module victoriametrics
+    ├── client.rs
+    └── ...
+```

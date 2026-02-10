@@ -2,7 +2,7 @@ use super::counters::Counters;
 use super::state::{Event, State};
 use crate::queue::Value;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, mpsc};
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -16,6 +16,7 @@ pub struct Automate {
 impl Automate {
     /// Creates a new instance of the automaton with an mpsc Sender.
     pub fn new(tx: mpsc::Sender<Value>) -> Self {
+        log::info!("New Automate");
         Automate {
             state: State::Created,
             counters: Counters::new(),

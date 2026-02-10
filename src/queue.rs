@@ -1,11 +1,10 @@
-
-use std::sync::{Arc, Mutex};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone)]
 pub struct Value {
     pub id: u16,
-    pub timestamp:u64,
+    pub timestamp: u64,
     pub value: String,
 }
 

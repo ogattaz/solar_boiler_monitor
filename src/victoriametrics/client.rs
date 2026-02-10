@@ -1,8 +1,7 @@
 //! Client HTTP pour VictoriaMetrics.
 
-use reqwest::Client;
-use serde_json::Value;
 use crate::victoriametrics::models::Metric;
+use reqwest::Client;
 use std::error::Error;
 
 /// Client pour VictoriaMetrics.
@@ -21,10 +20,7 @@ impl VMClient {
     }
 
     /// Envoie des métriques à VictoriaMetrics.
-    pub async fn send_metrics(
-        &self,
-        metrics: &[Metric],
-    ) -> Result<(), Box<dyn Error>> {
+    pub async fn send_metrics(&self, metrics: &[Metric]) -> Result<(), Box<dyn Error>> {
         let url = format!("{}/api/v1/import", self.base_url);
         let mut query_string = String::new();
 
@@ -32,7 +28,8 @@ impl VMClient {
             query_string.push_str(&format!(
                 "{}{} {} {}\n",
                 metric.name,
-                metric.labels
+                metric
+                    .labels
                     .iter()
                     .map(|(k, v)| format!(",{}=\"{}\"", k, v))
                     .collect::<String>(),
@@ -53,7 +50,8 @@ impl VMClient {
             return Err(format!(
                 "Erreur lors de l'envoi des métriques: {}",
                 response.status()
-            ).into());
+            )
+            .into());
         }
 
         Ok(())

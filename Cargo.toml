@@ -16,3 +16,12 @@ clap = { version = "4.5.57", features = ["derive"] }
 console = "0.16.2"
 signal-hook = "0.4.3"
 ctrlc = "3.5.1"
+
+
+[[test]]
+name = "QA_automate_test"
+path = "tests/automate/machine.rs"
+
+[[test]]
+name = "QA_timeseries_test"
+path = "tests/timeseries/processor.rs"
