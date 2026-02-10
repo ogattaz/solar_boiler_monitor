@@ -1,17 +1,15 @@
-mod queue;
-
 use clap::Parser;
 use ctrlc;
 use fern::colors::{Color, ColoredLevelConfig};
 use home_automation::automate::{Automate, Event};
 use home_automation::config::AppMonitorConfig;
-use home_automation::queue::{Queue, Value};
+use home_automation::queue::Value;
 use home_automation::timeseries::processor;
 use home_automation::timeseries::processor::{Processor, RawData};
 use home_automation::victoriametrics::{Metric, VMClient};
 use log::LevelFilter;
 use signal_hook::{consts::SIGINT, iterator::Signals};
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 
@@ -23,8 +21,8 @@ fn main() {
 
     log::info!("{}", config.print());
 
-    // Créer une file FIFO partagée
-    let queue = Arc::new(Queue::new());
+    // Créer un canal mpsc
+    let (tx, rx) = mpsc::channel::<Value>();
 
     // Flag pour indiquer aux threads de s'arrêter
     let running = Arc::new(AtomicBool::new(true));
@@ -33,7 +31,7 @@ fn main() {
     let running_automate = Arc::clone(&running);
     let running_processor = Arc::clone(&running);
 
-    let mut automate = Automate::new(Arc::clone(&queue));
+    let mut automate = Automate::new(tx);
 
     let automate_handle = thread::spawn(move || {
         automate.run(running_automate);
@@ -41,7 +39,7 @@ fn main() {
 
     let vm_client = VMClient::new("http://localhost:8428");
 
-    let mut processor = Processor::new(Arc::clone(&queue));
+    let mut processor = Processor::new(rx);
 
     let processor_handle = thread::spawn(move || {
         processor.run(running_processor);

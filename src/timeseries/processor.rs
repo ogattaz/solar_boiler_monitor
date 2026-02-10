@@ -1,38 +1,49 @@
 //! Traitement des données en séries temporelles.
 
-use crate::automate::{Counters, State};
-use crate::queue::{Queue, Value};
+use crate::queue::Value;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::sync::{Arc, mpsc};
+use std::time::Instant;
 
 pub struct Processor {
     pub start_time: Instant,
-    queue: Arc<Queue>, // Ajoutez la Queue comme membre de la structure
+    rx: mpsc::Receiver<Value>, // Canal de réception des valeurs
 }
 
 impl Processor {
-    pub fn new(queue: Arc<Queue>) -> Processor {
+    pub fn new(rx: mpsc::Receiver<Value>) -> Processor {
         Processor {
             start_time: Instant::now(),
-            queue: queue,
+            rx,
         }
     }
 
     pub fn run(&mut self, running: Arc<AtomicBool>) {
         log::info!("Processor started.");
         loop {
-            thread::sleep(Duration::from_secs(5));
-            if (!running.load(Ordering::Relaxed)) {
+            // Vérifier si on doit s'arrêter
+            if !running.load(Ordering::Relaxed) {
+                log::info!("Stop signal received.");
                 break;
             }
-            log::info!("Processor running...");
 
-            if !self.queue.is_empty() {
-                if let Some(value) = self.queue.dequeue() {
+            // Attente avec recv (bloquant jusqu'à réception d'un message)
+            match self.rx.recv() {
+                Ok(value) => {
+                    log::info!(
+                        "Received value: id={}, timestamp={}, value={}",
+                        value.id,
+                        value.timestamp,
+                        value.value
+                    );
                     let raw_data = RawData::from(value);
+                    process_data(raw_data);
+                }
+                Err(_) => {
+                    // Le canal a été fermé (tous les senders ont été droppés)
+                    log::info!("Channel closed, stopping processor.");
+                    break;
                 }
             }
         }

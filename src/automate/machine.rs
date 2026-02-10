@@ -1,7 +1,7 @@
 use super::counters::Counters;
 use super::state::{Event, State};
-use crate::queue::{Queue, Value};
-use std::sync::Arc;
+use crate::queue::Value;
+use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -10,18 +10,17 @@ pub struct Automate {
     pub state: State,
     pub counters: Counters,
     pub start_time: Instant,
-    queue: Arc<Queue>, // Ajoutez la Queue comme membre de la structure
+    tx: mpsc::Sender<Value>, // Canal d'envoi des valeurs
 }
 
 impl Automate {
-    /// Crée une nouvelle instance de l'automate avec une Queue.
-    pub fn new(queue: Arc<Queue>) -> Self {
-        {}
+    /// Crée une nouvelle instance de l'automate avec un Sender mpsc.
+    pub fn new(tx: mpsc::Sender<Value>) -> Self {
         Automate {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),
-            queue, // Initialise la Queue
+            tx, // Initialise le Sender
         }
     }
 
@@ -114,7 +113,12 @@ impl Automate {
             timestamp: 0,
             value: "23.5 dC".to_string(), // Exemple de valeur
         };
-        self.queue.enqueue(value);
+
+        // Envoi non-bloquant avec try_send
+        match self.tx.send(value) {
+            Ok(_) => log::debug!("Value sent successfully"),
+            Err(e) => log::error!("Failed to send value: {:?}", e),
+        }
     }
 
     fn logoff(&mut self) {
