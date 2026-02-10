@@ -1,8 +1,8 @@
 use super::counters::Counters;
 use super::state::{Event, State};
 use crate::queue::Value;
-use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -10,17 +10,17 @@ pub struct Automate {
     pub state: State,
     pub counters: Counters,
     pub start_time: Instant,
-    tx: mpsc::Sender<Value>, // Canal d'envoi des valeurs
+    tx: mpsc::Sender<Value>, // Channel sender for values
 }
 
 impl Automate {
-    /// Crée une nouvelle instance de l'automate avec un Sender mpsc.
+    /// Creates a new instance of the automaton with an mpsc Sender.
     pub fn new(tx: mpsc::Sender<Value>) -> Self {
         Automate {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),
-            tx, // Initialise le Sender
+            tx, // Initialize the Sender
         }
     }
 
@@ -31,9 +31,13 @@ impl Automate {
     pub fn run(&mut self, running: Arc<AtomicBool>) {
         self.handle_event(Event::Start);
 
+        let mut last_read_time = Instant::now();
+        let read_interval = Duration::from_secs(20);
+
         loop {
             thread::sleep(Duration::from_secs(1));
-            if (!running.load(Ordering::Relaxed)) {
+            if !running.load(Ordering::Relaxed) {
+                log::info!("Automate shutting down...");
                 break;
             }
             match self.state {
@@ -50,14 +54,17 @@ impl Automate {
                     self.read_description();
                 }
                 State::Ready => {
-                    self.read_values();
-                    thread::sleep(Duration::from_secs(30)); // Attendre 30 secondes
+                    // Check if enough time has elapsed since last read
+                    if last_read_time.elapsed() >= read_interval {
+                        self.read_values();
+                        last_read_time = Instant::now();
+                    }
                 }
                 _ => {}
             }
         }
 
-        if (self.state != State::Idle && self.state != State::Tested) {
+        if self.state != State::Idle && self.state != State::Tested {
             self.logoff();
         }
         log::info!("Automate End.");
@@ -67,11 +74,11 @@ impl Automate {
         match (&self.state, event) {
             (State::Created, Event::Start) => {
                 log::info!("Automate started.");
-                self.state = State::Idle; // Exemple de transition
+                self.state = State::Idle; // Example transition
             }
             (State::Idle, Event::Stop) => {}
 
-            _ => println!("Unknown transition : {:?} -> {:?}", self.state, event),
+            _ => println!("Unknown transition: {:?} -> {:?}", self.state, event),
         }
     }
 
@@ -107,14 +114,14 @@ impl Automate {
         log::info!("Reading values...");
         self.counters.increment("read_values");
 
-        // Simuler la lecture des valeurs
+        // Simulate reading values
         let value = Value {
             id: 125,
             timestamp: 0,
-            value: "23.5 dC".to_string(), // Exemple de valeur
+            value: "23.5 dC".to_string(), // Example value
         };
 
-        // Envoi non-bloquant avec try_send
+        // Send via the channel
         match self.tx.send(value) {
             Ok(_) => log::debug!("Value sent successfully"),
             Err(e) => log::error!("Failed to send value: {:?}", e),

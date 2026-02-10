@@ -1,14 +1,15 @@
-//! Traitement des données en séries temporelles.
+//! Time series data processing.
 
 use crate::queue::Value;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 
 pub struct Processor {
     pub start_time: Instant,
-    rx: mpsc::Receiver<Value>, // Canal de réception des valeurs
+    rx: mpsc::Receiver<Value>, // Channel receiver for values
 }
 
 impl Processor {
@@ -21,17 +22,26 @@ impl Processor {
 
     pub fn run(&mut self, running: Arc<AtomicBool>) {
         log::info!("Processor started.");
+
+        let mut last_message_time = Instant::now();
+        let message_interval = Duration::from_secs(5);
+
         loop {
-            // Vérifier si on doit s'arrêter
+            // Check if we should stop
             if !running.load(Ordering::Relaxed) {
-                log::info!("Stop signal received.");
+                log::info!("Processor shutting down...");
                 break;
             }
+            // Check if enough time has elapsed since new message read
+            if last_message_time.elapsed() >= message_interval {
+                log::debug!("Processor waiting for messages...");
+                last_message_time = Instant::now();
+            }
 
-            // Attente avec recv (bloquant jusqu'à réception d'un message)
-            match self.rx.recv() {
+            // Wait with 1 second timeout to regularly check the running flag
+            match self.rx.recv_timeout(Duration::from_secs(1)) {
                 Ok(value) => {
-                    log::info!(
+                    log::debug!(
                         "Received value: id={}, timestamp={}, value={}",
                         value.id,
                         value.timestamp,
@@ -40,8 +50,12 @@ impl Processor {
                     let raw_data = RawData::from(value);
                     process_data(raw_data);
                 }
-                Err(_) => {
-                    // Le canal a été fermé (tous les senders ont été droppés)
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    // Timeout reached, continue loop to check the running flag
+                    continue;
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    // Channel closed (all senders have been dropped)
                     log::info!("Channel closed, stopping processor.");
                     break;
                 }
@@ -59,7 +73,7 @@ pub struct RawData {
     pub value: String,
 }
 
-// Implémentation du trait `From` pour convertir `Value` en `RawData`
+// Implementation of the `From` trait to convert `Value` into `RawData`
 impl From<Value> for RawData {
     fn from(value: Value) -> Self {
         RawData {

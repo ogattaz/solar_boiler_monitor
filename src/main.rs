@@ -21,10 +21,10 @@ fn main() {
 
     log::info!("{}", config.print());
 
-    // Créer un canal mpsc
+    // Create an mpsc channel
     let (tx, rx) = mpsc::channel::<Value>();
 
-    // Flag pour indiquer aux threads de s'arrêter
+    // Flag to signal threads to stop
     let running = Arc::new(AtomicBool::new(true));
 
     // Clone the running flag for each thread
@@ -60,7 +60,7 @@ fn main() {
 }
 
 fn init_logger(levelFilter: LevelFilter) -> Result<(), fern::InitError> {
-    // Configuration des couleurs pour les niveaux de log
+    // Configure colors for log levels
     let colors = ColoredLevelConfig::new()
         .error(Color::Red)
         .warn(Color::Yellow)
@@ -68,7 +68,7 @@ fn init_logger(levelFilter: LevelFilter) -> Result<(), fern::InitError> {
         .debug(Color::Blue)
         .trace(Color::BrightBlack);
 
-    // Configuration du logger avec `fern`
+    // Configure logger with `fern`
     fern::Dispatch::new()
         .format(move |out, message, record| {
             out.finish(format_args!(
@@ -79,13 +79,13 @@ fn init_logger(levelFilter: LevelFilter) -> Result<(), fern::InitError> {
                 message                                  // Message
             ))
         })
-        .level(levelFilter) // Niveau minimal de log
-        .chain(std::io::stdout()) // Destination : stdout
-        .apply()?; // Applique la configuration
+        .level(levelFilter) // Minimum log level
+        .chain(std::io::stdout()) // Destination: stdout
+        .apply()?; // Apply configuration
 
-    log::info!("Logger initialisé avec Fern et Chrono");
-    log::debug!("Ceci est un message de debug");
-    log::error!("Ceci est une erreur");
+    log::info!("Logger initialized with Fern and Chrono");
+    log::debug!("This is a debug message");
+    log::error!("This is an error");
 
     Ok(())
 }
