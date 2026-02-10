@@ -1,10 +1,13 @@
-# Solisart exchanges
+# Boiler communication protocol
+
+boiler exchanges
 
 
-## lecture_valeurs_donnees.php
+## read values as xml document
+
+Server script : lecture_valeurs_donnees.php
 
 ### request
-
 
 * Request URL : http://192.168.0.125/admin/divers/ajax/lecture_valeurs_donnees.php
 * Request Method :   POST
@@ -54,7 +57,6 @@ Headers:
 
 
 
-
 ## admin page (a)
 
 ### request
@@ -71,7 +73,6 @@ Status Code : 302 Found
 
 Headers:
 * location : http://192.168.0.125/admin/?page=installation&id=SC1Z20230801 ==> redirect
-
 
 
 

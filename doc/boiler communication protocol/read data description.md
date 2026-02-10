@@ -1,7 +1,8 @@
-# Solisart exchanges
+# Boiler communication protocol
 
+## read boiler data description as xml document
 
-## /lecture_descriptions_donnees.php.php
+Server script : lecture_descriptions_donnees.php
 
 ### request
 * Request URL : http://192.168.0.125/admin/divers/ajax/lecture_descriptions_donnees.php

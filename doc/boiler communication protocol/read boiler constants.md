@@ -1,7 +1,6 @@
-# Solisart exchanges
+# Boiler communication protocol
 
-
-## lecture_valeurs_donnees.php
+## read boiler constants as js data
 
 ### request
 * Request URL : http://192.168.0.125/admin/divers/js/solisart/commun-donnees.1705045295.js
