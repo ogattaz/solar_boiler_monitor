@@ -4,7 +4,6 @@ mod tests {
     use crate::logger::AppMonitorLogger;
     use crate::queue::Value;
     use log::LevelFilter;
-    use std::sync::mpsc;
 
     #[test]
     fn test_new() {
@@ -14,15 +13,15 @@ mod tests {
             .expect("Logger initialization failed");
 
         // Create an mpsc channel
-        let (tx, rx) = mpsc::channel::<Value>();
+        let (sender, _receiver) = tokio::sync::mpsc::channel::<Value>(100);
 
         // WHEN
-        let automate = Automate::new(tx);
+        let automate = Automate::new(sender);
 
-        let currentState = automate.state;
-        log::info!("Current State: {:?}", currentState);
+        let current_state = automate.state;
+        log::info!("Current State: {:?}", current_state);
 
         // THEN
-        assert!(currentState == State::Created);
+        assert_eq!(current_state, State::Created);
     }
 }

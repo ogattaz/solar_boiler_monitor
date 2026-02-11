@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-tokio = "1.49.0"
+tokio = { version = "1.49.0", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 toml = "0.9.11+spec-1.1.0"
 reqwest = "0.13.2"
@@ -16,6 +16,10 @@ clap = { version = "4.5.57", features = ["derive"] }
 console = "0.16.2"
 signal-hook = "0.4.3"
 ctrlc = "3.5.1"
+axum = "0.8.8"
+hyper = "1.8.1"
+futures = "0.3.31"
+oneshot = "0.1.13"
 
 
 [[test]]

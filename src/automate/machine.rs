@@ -1,22 +1,20 @@
 use super::counters::Counters;
 use super::state::{Event, State};
 use crate::queue::Value;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
-use std::thread;
-use std::time::{Duration, Instant};
+use log::info;
+use tokio::sync::{mpsc, watch};
+use tokio::time::{sleep, Duration, Instant};
 
 pub struct Automate {
     pub state: State,
     pub counters: Counters,
     pub start_time: Instant,
-    sender: mpsc::Sender<Value>, // Channel sender for values
+    sender: mpsc::Sender<Value>,
 }
 
 impl Automate {
-    /// Creates a new instance of the automaton with an mpsc Sender.
     pub fn new(sender: mpsc::Sender<Value>) -> Self {
-        log::info!("New Automate");
+        info!("New Automate");
         Automate {
             state: State::Created,
             counters: Counters::new(),
@@ -25,39 +23,40 @@ impl Automate {
         }
     }
 
-    pub fn uptime(&mut self) -> Duration {
+    pub fn uptime(&self) -> Duration {
         Instant::now() - self.start_time
     }
 
-    pub fn run(&mut self, running: Arc<AtomicBool>) {
+    pub async fn run(&mut self, shutdown_receiver: watch::Receiver<bool>) {
         self.handle_event(Event::Start);
 
         let mut last_read_time = Instant::now();
         let read_interval = Duration::from_secs(20);
 
         loop {
-            thread::sleep(Duration::from_secs(1));
-            if !running.load(Ordering::Relaxed) {
-                log::info!("Automate shutting down...");
+            sleep(Duration::from_secs(1)).await;
+
+            if *shutdown_receiver.borrow() {
+                info!("Automate shutting down...");
                 break;
             }
+
             match self.state {
                 State::Idle => {
-                    self.diagnose_network();
+                    self.diagnose_network().await;
                 }
                 State::Tested => {
-                    self.initialize();
+                    self.initialize().await;
                 }
                 State::Initialized => {
-                    self.logging();
+                    self.logging().await;
                 }
                 State::Connected => {
-                    self.read_description();
+                    self.read_description().await;
                 }
                 State::Ready => {
-                    // Check if enough time has elapsed since last read
                     if last_read_time.elapsed() >= read_interval {
-                        self.read_values();
+                        self.read_values().await;
                         last_read_time = Instant::now();
                     }
                 }
@@ -66,73 +65,64 @@ impl Automate {
         }
 
         if self.state != State::Idle && self.state != State::Tested {
-            self.logoff();
+            self.logoff().await;
         }
-        log::info!("Automate End.");
+        info!("Automate End.");
     }
 
     pub fn handle_event(&mut self, event: Event) {
         match (&self.state, event) {
             (State::Created, Event::Start) => {
-                log::info!("Automate started.");
-                self.state = State::Idle; // Example transition
+                info!("Automate started.");
+                self.state = State::Idle;
             }
             (State::Idle, Event::Stop) => {}
-
             _ => println!("Unknown transition: {:?} -> {:?}", self.state, event),
         }
     }
 
-    fn diagnose_network(&mut self) {
-        log::info!("Diagnosing network...");
+    async fn diagnose_network(&mut self) {
+        info!("Diagnosing network...");
         self.counters.increment("diagnose_network");
-
         self.state = State::Tested;
     }
 
-    fn initialize(&mut self) {
-        log::info!("Initializing...");
+    async fn initialize(&mut self) {
+        info!("Initializing...");
         self.counters.increment("initialize");
-
         self.state = State::Initialized;
     }
 
-    fn logging(&mut self) {
-        log::info!("Logging...");
+    async fn logging(&mut self) {
+        info!("Logging...");
         self.counters.increment("logging");
-
         self.state = State::Connected;
     }
 
-    fn read_description(&mut self) {
-        log::info!("reading description...");
+    async fn read_description(&mut self) {
+        info!("Reading description...");
         self.counters.increment("read_description");
-
         self.state = State::Ready;
     }
 
-    fn read_values(&mut self) {
-        log::info!("Reading values...");
+    async fn read_values(&mut self) {
+        info!("Reading values...");
         self.counters.increment("read_values");
 
-        // Simulate reading values
         let value = Value {
             id: 125,
             timestamp: 0,
-            value: "23.5 dC".to_string(), // Example value
+            value: "23.5 dC".to_string(),
         };
 
-        // Send via the channel
-        match self.sender.send(value) {
-            Ok(_) => log::debug!("Value sent successfully"),
-            Err(e) => log::error!("Failed to send value: {:?}", e),
+        if let Err(e) = self.sender.send(value).await {
+            log::error!("Failed to send value: {:?}", e);
         }
     }
 
-    fn logoff(&mut self) {
-        log::info!("Logoff...");
+    async fn logoff(&mut self) {
+        info!("Logoff...");
         self.counters.increment("logoff");
-
         self.state = State::Idle;
     }
 }

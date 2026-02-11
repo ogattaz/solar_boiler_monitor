@@ -1,68 +1,66 @@
-//! Time series data processing.
-
 use crate::queue::Value;
+use log::info;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{mpsc, Arc};
-use std::time::{Duration, Instant};
+use tokio::sync::{mpsc, watch};
+use tokio::time::{Duration, Instant};
 
 pub struct Processor {
     pub start_time: Instant,
-    receiver: mpsc::Receiver<Value>, // Channel receiver for values
+    receiver: mpsc::Receiver<Value>,
 }
 
 impl Processor {
     pub fn new(receiver: mpsc::Receiver<Value>) -> Processor {
         Processor {
             start_time: Instant::now(),
-            //let vm_client = VMClient::new("http://localhost:8428"),
             receiver,
         }
     }
 
-    pub fn run(&mut self, running: Arc<AtomicBool>) {
-        log::info!("Processor started.");
+    pub async fn run(&mut self, mut shutdown_receiver: watch::Receiver<bool>) {
+        info!("Processor started.");
 
         let mut last_message_time = Instant::now();
         let message_interval = Duration::from_secs(5);
 
         loop {
-            // Check if we should stop
-            if !running.load(Ordering::Relaxed) {
-                log::info!("Processor shutting down...");
-                break;
-            }
-            // Check if enough time has elapsed since new message read
-            if last_message_time.elapsed() >= message_interval {
-                log::debug!("Processor waiting for messages...");
-                last_message_time = Instant::now();
+            tokio::select! {
+                // Check for shutdown signal
+                _ = shutdown_receiver.changed() => {
+                    if *shutdown_receiver.borrow() {
+                        info!("Processor shutting down...");
+                        break;
+                    }
+                },
+                // Check for new messages
+                result = self.receiver.recv() => {
+                    match result {
+                        Some(value) => {
+                            info!(
+                                "Received value: id={}, timestamp={}, value={}",
+                                value.id,
+                                value.timestamp,
+                                value.value
+                            );
+                            let raw_data = RawData::from(value);
+                            process_data(raw_data).await;
+                        }
+                        None => {
+                            info!("Channel closed, stopping processor.");
+                            break;
+                        }
+                    }
+                }
             }
 
-            // Wait with 1 second timeout to regularly check the running flag
-            match self.receiver.recv_timeout(Duration::from_secs(1)) {
-                Ok(value) => {
-                    log::debug!(
-                        "Received value: id={}, timestamp={}, value={}",
-                        value.id,
-                        value.timestamp,
-                        value.value
-                    );
-                    let raw_data = RawData::from(value);
-                    process_data(raw_data);
-                }
-                Err(mpsc::RecvTimeoutError::Timeout) => {
-                    // Timeout reached, continue loop to check the running flag
-                    continue;
-                }
-                Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    // Channel closed (all senders have been dropped)
-                    log::info!("Channel closed, stopping processor.");
-                    break;
-                }
+            // Check if enough time has elapsed since last message read
+            if last_message_time.elapsed() >= message_interval {
+                info!("Processor waiting for messages...");
+                last_message_time = Instant::now();
             }
         }
 
-        log::info!("Processor End.");
+        info!("Processor End.");
     }
 }
 
@@ -73,7 +71,6 @@ pub struct RawData {
     pub value: String,
 }
 
-// Implementation of the `From` trait to convert `Value` into `RawData`
 impl From<Value> for RawData {
     fn from(value: Value) -> Self {
         RawData {
@@ -84,6 +81,7 @@ impl From<Value> for RawData {
     }
 }
 
-pub fn process_data(raw_data: RawData) {
-    log::debug!("Processing data: {:?}", raw_data);
+async fn process_data(raw_data: RawData) {
+    info!("Processing data: {:?}", raw_data);
+    // Ajoutez ici la logique de traitement des données
 }
