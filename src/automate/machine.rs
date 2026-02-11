@@ -10,18 +10,18 @@ pub struct Automate {
     pub state: State,
     pub counters: Counters,
     pub start_time: Instant,
-    tx: mpsc::Sender<Value>, // Channel sender for values
+    sender: mpsc::Sender<Value>, // Channel sender for values
 }
 
 impl Automate {
     /// Creates a new instance of the automaton with an mpsc Sender.
-    pub fn new(tx: mpsc::Sender<Value>) -> Self {
+    pub fn new(sender: mpsc::Sender<Value>) -> Self {
         log::info!("New Automate");
         Automate {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),
-            tx, // Initialize the Sender
+            sender,
         }
     }
 
@@ -123,7 +123,7 @@ impl Automate {
         };
 
         // Send via the channel
-        match self.tx.send(value) {
+        match self.sender.send(value) {
             Ok(_) => log::debug!("Value sent successfully"),
             Err(e) => log::error!("Failed to send value: {:?}", e),
         }

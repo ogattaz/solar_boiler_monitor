@@ -4,19 +4,19 @@ use crate::queue::Value;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{mpsc, Arc};
-use std::thread;
 use std::time::{Duration, Instant};
 
 pub struct Processor {
     pub start_time: Instant,
-    rx: mpsc::Receiver<Value>, // Channel receiver for values
+    receiver: mpsc::Receiver<Value>, // Channel receiver for values
 }
 
 impl Processor {
-    pub fn new(rx: mpsc::Receiver<Value>) -> Processor {
+    pub fn new(receiver: mpsc::Receiver<Value>) -> Processor {
         Processor {
             start_time: Instant::now(),
-            rx,
+            //let vm_client = VMClient::new("http://localhost:8428"),
+            receiver,
         }
     }
 
@@ -39,7 +39,7 @@ impl Processor {
             }
 
             // Wait with 1 second timeout to regularly check the running flag
-            match self.rx.recv_timeout(Duration::from_secs(1)) {
+            match self.receiver.recv_timeout(Duration::from_secs(1)) {
                 Ok(value) => {
                     log::debug!(
                         "Received value: id={}, timestamp={}, value={}",
@@ -84,4 +84,6 @@ impl From<Value> for RawData {
     }
 }
 
-pub fn process_data(raw_data: RawData) {}
+pub fn process_data(raw_data: RawData) {
+    log::debug!("Processing data: {:?}", raw_data);
+}

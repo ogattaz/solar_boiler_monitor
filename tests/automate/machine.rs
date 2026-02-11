@@ -1,27 +1,29 @@
-use std::sync::{mpsc, Arc};
+use home_automation::automate::Automate;
+use home_automation::logger::AppMonitorLogger;
+use home_automation::queue::Value;
+use log::LevelFilter;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use std::thread;
 use std::time::Duration;
-use home_automation::automate::Automate;
-use home_automation::queue::Value;
 
 #[test]
 fn test_automate_integration() {
-
     // GIVEN
-    init_logger();
+    AppMonitorLogger::new()
+        .init(LevelFilter::Debug)
+        .expect("Logger initialization failed");
 
     // Create an mpsc channel
-    let (tx, rx) = mpsc::channel::<Value>();
+    let (sender, _receiver) = mpsc::channel::<Value>();
     // Flag to signal threads to stop
     let running = Arc::new(AtomicBool::new(true));
 
     // Clone the running flag for each thread
     let running_automate = Arc::clone(&running);
 
-
     // WHEN
-    let mut automate = Automate::new(tx);
+    let mut automate = Automate::new(sender);
     let automate_handle = thread::spawn(move || {
         automate.run(running_automate);
     });
@@ -31,12 +33,4 @@ fn test_automate_integration() {
 
     // THEN
     assert!(true);
-}
-
-
-fn init_logger()  {
-    fern::Dispatch::new()
-        .level(log::LevelFilter::Debug) // maximum log level
-        .chain(std::io::stdout()) // Destination: stdout
-        .apply().expect("Unable to init logger"); // Apply configuration
 }
