@@ -1,3 +1,4 @@
+use axum::Json;
 use clap::Parser;
 use log::LevelFilter;
 use std::path::PathBuf;
@@ -97,6 +98,18 @@ impl MonitorConfig {
             self.log_level,
             self.dry_running
         )
+    }
+
+    pub fn get_json(&self) -> Json<serde_json::Value> {
+        Json(serde_json::json!({
+            "user_id": self.user_id,
+            "password_file_path": self.password_file_path,
+            "boiler_id": self.boiler_id,
+            "boiler_hostname": self.boiler_hostname,
+            "reading_values_delay": self.reading_values_delay,
+            "log_level": self.log_level.to_string(),
+            "dry_running": self.dry_running
+        }))
     }
 
     //Returns the password stored

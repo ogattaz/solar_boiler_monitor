@@ -1,11 +1,10 @@
-use axum::{routing::get, Json, Router};
 use clap::Parser;
 use home_automation::automaton::Automaton;
 use home_automation::config::MonitorConfig;
 use home_automation::data::Value;
 use home_automation::logger::MonitorLogger;
 use home_automation::processor::processor::Processor;
-use std::net::SocketAddr;
+use home_automation::web::UIServer;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
@@ -21,7 +20,7 @@ async fn main() {
     log::info!("Monitor begin. {}", config.print());
 
     // Create an asynchronous channel
-    let (sender, receiver) = mpsc::channel::<Value>(100);
+    let (value_sender, value_receiver) = mpsc::channel::<Value>(100);
 
     // Flag to signal tasks to stop
     let (shutdown_sender, shutdown_receiver) = watch::channel(false);
@@ -36,22 +35,23 @@ async fn main() {
     let http_shutdown_receiver = shutdown_receiver.clone();
 
     // Spawn the automaton task
-    let mut automate = Automaton::new(sender, config.clone());
+    let mut automate = Automaton::new(value_sender, config.clone());
     let automate_handle: JoinHandle<()> = tokio::spawn(async move {
         automate.run(automate_shutdown_receiver).await;
         let _ = automate_done_tx.send(());
     });
 
     // Spawn the processor task
-    let mut processor = Processor::new(receiver);
+    let mut processor = Processor::new(value_receiver);
     let processor_handle: JoinHandle<()> = tokio::spawn(async move {
         processor.run(processor_shutdown_receiver).await;
         let _ = processor_done_tx.send(());
     });
 
     // Spawn the HTTP server task
+    let ui_server = UIServer::new(config.clone());
     let http_handle: JoinHandle<()> = tokio::spawn(async move {
-        start_http_server(http_shutdown_receiver).await;
+        ui_server.run(http_shutdown_receiver).await;
         let _ = http_done_tx.send(());
     });
 
@@ -86,39 +86,4 @@ async fn main() {
     let _ = tokio::join!(automate_handle, processor_handle, http_handle);
 
     log::info!("Monitor end. All tasks are stopped.");
-}
-
-async fn start_http_server(mut shutdown_receiver: watch::Receiver<bool>) {
-    let app = Router::new()
-        .route("/health", get(health_check))
-        .route("/metrics", get(get_metrics));
-
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    log::info!("HTTP server started on http://{}/health", addr);
-
-    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-
-    axum::serve(listener, app.into_make_service())
-        .with_graceful_shutdown(async move {
-            shutdown_receiver.changed().await.ok();
-            log::info!("HTTP server stopping...");
-        })
-        .await
-        .unwrap();
-
-    log::info!("HTTP server stopped");
-}
-
-async fn health_check() -> &'static str {
-    "OK"
-}
-
-async fn get_metrics() -> Json<serde_json::Value> {
-    Json(serde_json::json!({
-        "status": "ok",
-        "metrics": {
-            "temperature": 23.5,
-            "pressure": 1.2
-        }
-    }))
 }
