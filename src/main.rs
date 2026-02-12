@@ -6,7 +6,7 @@ use home_automation::logger::AppMonitorLogger;
 use home_automation::queue::Value;
 use home_automation::timeseries::processor::Processor;
 use std::net::SocketAddr;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
 #[tokio::main]
@@ -18,7 +18,7 @@ async fn main() {
         .init(config.log_level)
         .expect("Logger initialization failed");
 
-    log::info!("{}", config.print());
+    log::info!("Monitor begin. {}", config.print());
 
     // Create an asynchronous channel
     let (sender, receiver) = mpsc::channel::<Value>(100);
@@ -33,6 +33,7 @@ async fn main() {
 
     let automate_shutdown_receiver = shutdown_receiver.clone();
     let processor_shutdown_receiver = shutdown_receiver.clone();
+    let http_shutdown_receiver = shutdown_receiver.clone();
 
     // Spawn the automate task
     let mut automate = Automate::new(sender);
@@ -50,7 +51,7 @@ async fn main() {
 
     // Spawn the HTTP server task
     let http_handle: JoinHandle<()> = tokio::spawn(async move {
-        start_http_server().await;
+        start_http_server(http_shutdown_receiver).await;
         let _ = http_done_tx.send(());
     });
 
@@ -67,33 +68,27 @@ async fn main() {
 
     log::info!("Waiting for tasks to finish...");
 
-    // Wait for tasks to finish
-    // tokio::select! {
-    //     _ = automate_handle => log::info!("Automate task completed"),
-    //     _ = processor_handle => log::info!("Processor task completed"),
-    //     _ = http_handle => log::info!("HTTP server task completed"),
-    // }
-
     // Wait for all tasks to notify completion
-    tokio::select! {
-        _ = automate_done_rx => {
-            log::info!("Automate task completed");
-        },
-        _ = processor_done_rx => {
-            log::info!("Processor task completed");
-        },
-        _ = http_done_rx => {
-            log::info!("HTTP server task completed");
-        },
+    let (automate_result, processor_result, http_result) =
+        tokio::join!(automate_done_rx, processor_done_rx, http_done_rx);
+
+    if automate_result.is_ok() {
+        log::info!("Automate task completed");
+    }
+    if processor_result.is_ok() {
+        log::info!("Processor task completed");
+    }
+    if http_result.is_ok() {
+        log::info!("HTTP server task completed");
     }
 
     // Wait for all tasks to finish
     let _ = tokio::join!(automate_handle, processor_handle, http_handle);
 
-    log::info!("End");
+    log::info!("Monitor end. All tasks are stopped.");
 }
 
-async fn start_http_server() {
+async fn start_http_server(mut shutdown_receiver: watch::Receiver<bool>) {
     let app = Router::new()
         .route("/health", get(health_check))
         .route("/metrics", get(get_metrics));
@@ -101,13 +96,17 @@ async fn start_http_server() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     log::info!("HTTP server started on http://{}/health", addr);
 
-    // Utilisez axum::serve directement
-    axum::serve(
-        tokio::net::TcpListener::bind(addr).await.unwrap(),
-        app.into_make_service(),
-    )
-    .await
-    .unwrap();
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(async move {
+            shutdown_receiver.changed().await.ok();
+            log::info!("HTTP server stopping...");
+        })
+        .await
+        .unwrap();
+
+    log::info!("HTTP server stopped");
 }
 
 async fn health_check() -> &'static str {
