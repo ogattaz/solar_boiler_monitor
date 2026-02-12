@@ -1,12 +1,12 @@
 #[cfg(test)]
 mod tests {
-    use crate::logger::AppMonitorLogger;
+    use crate::logger::MonitorLogger;
     use log::LevelFilter;
 
     #[test]
     fn test_new() {
         // WHEN
-        let app_logger = AppMonitorLogger::new();
+        let app_logger = MonitorLogger::new();
 
         app_logger
             .init(LevelFilter::Debug)

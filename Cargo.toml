@@ -23,9 +23,9 @@ oneshot = "0.1.13"
 
 
 [[test]]
-name = "QA_automate_test"
-path = "tests/automate/machine.rs"
+name = "QA_automaton_test"
+path = "tests/automaton/automaton_e2e.rs"
 
 [[test]]
-name = "QA_timeseries_test"
-path = "tests/timeseries/processor.rs"
+name = "QA_procssor_test"
+path = "tests/processor/processor_e2e.rs"

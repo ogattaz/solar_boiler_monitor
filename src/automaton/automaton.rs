@@ -1,23 +1,23 @@
 use super::counters::Counters;
 use super::state::{Event, State};
-use crate::config::AppMonitorConfig;
-use crate::queue::Value;
+use crate::config::MonitorConfig;
+use crate::data::Value;
 use log::info;
 use tokio::sync::{mpsc, watch};
 use tokio::time::{sleep, Duration, Instant};
 
-pub struct Automate {
+pub struct Automaton {
     pub state: State,
     pub counters: Counters,
     pub start_time: Instant,
     sender: mpsc::Sender<Value>,
-    config: AppMonitorConfig,
+    config: MonitorConfig,
 }
 
-impl Automate {
-    pub fn new(sender: mpsc::Sender<Value>, config: AppMonitorConfig) -> Self {
+impl Automaton {
+    pub fn new(sender: mpsc::Sender<Value>, config: MonitorConfig) -> Self {
         info!("New Automate");
-        Automate {
+        Automaton {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),

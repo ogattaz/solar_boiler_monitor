@@ -2,4 +2,4 @@
 
 mod config;
 
-pub use config::AppMonitorConfig;
+pub use config::MonitorConfig;

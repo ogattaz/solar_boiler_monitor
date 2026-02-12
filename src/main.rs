@@ -1,10 +1,10 @@
 use axum::{routing::get, Json, Router};
 use clap::Parser;
-use home_automation::automate::Automate;
-use home_automation::config::AppMonitorConfig;
-use home_automation::logger::AppMonitorLogger;
-use home_automation::queue::Value;
-use home_automation::timeseries::processor::Processor;
+use home_automation::automaton::Automaton;
+use home_automation::config::MonitorConfig;
+use home_automation::data::Value;
+use home_automation::logger::MonitorLogger;
+use home_automation::processor::processor::Processor;
 use std::net::SocketAddr;
 use tokio::sync::{mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
@@ -12,9 +12,9 @@ use tokio::task::JoinHandle;
 #[tokio::main]
 async fn main() {
     // Parse the command line arguments into a Config object.
-    let config = AppMonitorConfig::parse();
+    let config = MonitorConfig::parse();
 
-    AppMonitorLogger::new()
+    MonitorLogger::new()
         .init(config.log_level)
         .expect("Logger initialization failed");
 
@@ -35,8 +35,8 @@ async fn main() {
     let processor_shutdown_receiver = shutdown_receiver.clone();
     let http_shutdown_receiver = shutdown_receiver.clone();
 
-    // Spawn the automate task
-    let mut automate = Automate::new(sender, config.clone());
+    // Spawn the automaton task
+    let mut automate = Automaton::new(sender, config.clone());
     let automate_handle: JoinHandle<()> = tokio::spawn(async move {
         automate.run(automate_shutdown_receiver).await;
         let _ = automate_done_tx.send(());

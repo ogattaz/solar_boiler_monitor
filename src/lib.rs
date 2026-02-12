@@ -1,6 +1,6 @@
-pub mod automate;
+pub mod automaton;
 pub mod config;
+pub mod data;
 pub mod logger;
-pub mod queue;
-pub mod timeseries;
+pub mod processor;
 pub mod victoriametrics;

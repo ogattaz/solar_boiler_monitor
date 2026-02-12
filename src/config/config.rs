@@ -15,7 +15,7 @@ use std::path::PathBuf;
     It can run in dry-run mode to test without sending HTTP requests to the solar boiler.
     "
 )]
-pub struct AppMonitorConfig {
+pub struct MonitorConfig {
     /// The user ID used to connect to the boiler's HTTP server.
     #[arg(long)]
     pub user_id: String,
@@ -63,9 +63,9 @@ fn parse_log_level(level: &str) -> Result<LevelFilter, String> {
     }
 }
 
-impl Default for AppMonitorConfig {
+impl Default for MonitorConfig {
     fn default() -> Self {
-        AppMonitorConfig {
+        MonitorConfig {
             user_id: "test_user".to_string(),
             password_file_path: PathBuf::from("./.boiler_password.txt"),
             boiler_id: "TEST_BOILER".to_string(),
@@ -77,7 +77,7 @@ impl Default for AppMonitorConfig {
     }
 }
 
-impl AppMonitorConfig {
+impl MonitorConfig {
     /// Returns a formatted string with the configuration details."
     pub fn print(&self) -> String {
         format!(

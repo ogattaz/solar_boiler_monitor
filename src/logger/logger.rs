@@ -1,11 +1,11 @@
 use fern::colors::{Color, ColoredLevelConfig};
 use log::LevelFilter;
 
-pub struct AppMonitorLogger {}
+pub struct MonitorLogger {}
 
-impl AppMonitorLogger {
+impl MonitorLogger {
     pub fn new() -> Self {
-        AppMonitorLogger {}
+        MonitorLogger {}
     }
 
     pub fn print(&self) -> String {

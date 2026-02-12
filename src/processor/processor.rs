@@ -1,4 +1,4 @@
-use crate::queue::Value;
+use crate::data::Value;
 use log::info;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{mpsc, watch};

@@ -1,4 +1,4 @@
 mod logger;
 mod logger_tests;
 
-pub use logger::AppMonitorLogger;
+pub use logger::MonitorLogger;

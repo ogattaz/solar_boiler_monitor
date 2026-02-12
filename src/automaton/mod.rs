@@ -1,11 +1,11 @@
-//! Module de l'automate de collecte.
+//! Module de l'automaton de collecte.
 
 pub mod actions;
+pub mod automaton;
+mod automaton_tests;
 pub mod counters;
-pub mod machine;
-mod machine_tests;
 pub mod state;
 
+pub use automaton::Automaton;
 pub use counters::Counters;
-pub use machine::Automate;
 pub use state::{Event, State};

@@ -1,12 +1,12 @@
-// tests/timeseries/processor.rs
+// tests/processor/processor_e2e
 
-use home_automation::logger::AppMonitorLogger;
+use home_automation::logger::MonitorLogger;
 use log::LevelFilter;
 
 #[test]
-fn test_processor() {
+fn test_processor_integration() {
     // GIVEN
-    AppMonitorLogger::new()
+    MonitorLogger::new()
         .init(LevelFilter::Debug)
         .expect("Logger initialization failed");
 

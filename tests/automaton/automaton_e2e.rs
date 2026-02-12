@@ -1,15 +1,15 @@
-use home_automation::automate::Automate;
-use home_automation::config::AppMonitorConfig;
-use home_automation::logger::AppMonitorLogger;
-use home_automation::queue::Value;
+use home_automation::automaton::Automaton;
+use home_automation::config::MonitorConfig;
+use home_automation::logger::MonitorLogger;
+use home_automation::data::Value;
 use log::LevelFilter;
 use tokio::sync::{mpsc, watch};
 use tokio::time::{sleep, Duration};
 
 #[tokio::test]
-async fn test_automate_integration() {
+async fn test_automaton_integration() {
     // GIVEN
-    AppMonitorLogger::new()
+    MonitorLogger::new()
         .init(LevelFilter::Debug)
         .expect("Logger initialization failed");
 
@@ -20,21 +20,21 @@ async fn test_automate_integration() {
     let (shutdown_sender, shutdown_receiver) = watch::channel(false);
 
     // Create test config
-    let config = AppMonitorConfig::default();
+    let config = MonitorConfig::default();
 
     // WHEN
-    let mut automate = Automate::new(sender, config);
+    let mut automate = Automaton::new(sender, config);
     let automate_handle = tokio::spawn(async move {
         automate.run(shutdown_receiver).await;
     });
 
-    // Attendre un peu pour simuler le travail de l'automate
+    // Attendre un peu pour simuler le travail de l'automaton
     sleep(Duration::from_secs(6)).await;
 
     // Envoyer le signal d'arrêt
     shutdown_sender.send(true).expect("Failed to send shutdown signal");
 
-    // Attendre la fin de la tâche automate
+    // Attendre la fin de la tâche automaton
     automate_handle.await.expect("Automate task panicked");
 
     log::info!("Test end");
