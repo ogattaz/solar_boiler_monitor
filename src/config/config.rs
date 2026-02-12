@@ -5,7 +5,7 @@ use std::path::PathBuf;
 /**
 --user-id util --boiler-id SC1Z20230801 --boiler-hostname 192.168.0.125 --reading-values-delay 30000 --log-level debug --dry-running
 */
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 #[command(
     author = "Olivier Gattaz",
     version = "1.0",
@@ -60,6 +60,20 @@ fn parse_log_level(level: &str) -> Result<LevelFilter, String> {
             "Invalid log level: {}. Use error, warn, info, debug, or trace.",
             level
         )),
+    }
+}
+
+impl Default for AppMonitorConfig {
+    fn default() -> Self {
+        AppMonitorConfig {
+            user_id: "test_user".to_string(),
+            password_file_path: PathBuf::from("./.boiler_password.txt"),
+            boiler_id: "TEST_BOILER".to_string(),
+            boiler_hostname: "192.168.0.1".to_string(),
+            reading_values_delay: 30000,
+            log_level: LevelFilter::Debug,
+            dry_running: true,
+        }
     }
 }
 

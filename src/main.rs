@@ -36,7 +36,7 @@ async fn main() {
     let http_shutdown_receiver = shutdown_receiver.clone();
 
     // Spawn the automate task
-    let mut automate = Automate::new(sender);
+    let mut automate = Automate::new(sender, config.clone());
     let automate_handle: JoinHandle<()> = tokio::spawn(async move {
         automate.run(automate_shutdown_receiver).await;
         let _ = automate_done_tx.send(());

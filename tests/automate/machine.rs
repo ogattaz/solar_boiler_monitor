@@ -1,4 +1,5 @@
 use home_automation::automate::Automate;
+use home_automation::config::AppMonitorConfig;
 use home_automation::logger::AppMonitorLogger;
 use home_automation::queue::Value;
 use log::LevelFilter;
@@ -18,8 +19,11 @@ async fn test_automate_integration() {
     // Flag to signal tasks to stop
     let (shutdown_sender, shutdown_receiver) = watch::channel(false);
 
+    // Create test config
+    let config = AppMonitorConfig::default();
+
     // WHEN
-    let mut automate = Automate::new(sender);
+    let mut automate = Automate::new(sender, config);
     let automate_handle = tokio::spawn(async move {
         automate.run(shutdown_receiver).await;
     });

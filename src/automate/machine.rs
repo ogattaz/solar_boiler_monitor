@@ -1,5 +1,6 @@
 use super::counters::Counters;
 use super::state::{Event, State};
+use crate::config::AppMonitorConfig;
 use crate::queue::Value;
 use log::info;
 use tokio::sync::{mpsc, watch};
@@ -10,16 +11,18 @@ pub struct Automate {
     pub counters: Counters,
     pub start_time: Instant,
     sender: mpsc::Sender<Value>,
+    config: AppMonitorConfig,
 }
 
 impl Automate {
-    pub fn new(sender: mpsc::Sender<Value>) -> Self {
+    pub fn new(sender: mpsc::Sender<Value>, config: AppMonitorConfig) -> Self {
         info!("New Automate");
         Automate {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),
             sender,
+            config,
         }
     }
 
@@ -30,7 +33,7 @@ impl Automate {
     pub async fn run(&mut self, shutdown_receiver: watch::Receiver<bool>) {
         self.handle_event(Event::Start);
 
-        let read_interval = Duration::from_secs(20);
+        let read_interval = Duration::from_millis(self.config.reading_values_delay);
         // Initialize to zero instant (far in the past) to trigger immediate read
         let mut last_read_time = Instant::now() - read_interval;
 
