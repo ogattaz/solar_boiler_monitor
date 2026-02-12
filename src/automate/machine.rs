@@ -30,8 +30,9 @@ impl Automate {
     pub async fn run(&mut self, shutdown_receiver: watch::Receiver<bool>) {
         self.handle_event(Event::Start);
 
-        let mut last_read_time = Instant::now();
         let read_interval = Duration::from_secs(20);
+        // Initialize to zero instant (far in the past) to trigger immediate read
+        let mut last_read_time = Instant::now() - read_interval;
 
         loop {
             sleep(Duration::from_secs(1)).await;
