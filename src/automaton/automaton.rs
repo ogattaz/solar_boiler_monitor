@@ -7,7 +7,7 @@ use log::{error, info};
 use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, watch};
 use tokio::time::{sleep, Duration, Instant};
-use crate::automaton::actions::{run_initialize, run_login};
+use crate::automaton::actions::{run_initialize, run_login, run_read_desc};
 use crate::automaton::client::HttpClient;
 use crate::automaton::xml_utils::{encode_value, VarDescriptions};
 
@@ -131,7 +131,9 @@ impl Automaton {
         info!("Logging...");
         self.counters.increment("logging");
 
-        match run_login(self.http_client.clone(),self.config.user_id.clone(),self.config.read_password()).await {
+        let cookie_value = self.cookie.clone().unwrap();
+
+        match run_login(self.http_client.clone(),self.config.user_id.clone(),self.config.read_password(),cookie_value).await {
             Ok(connected)=>{
                 self.connected = Option::from(connected);
                 self.state = State::Connected
@@ -147,12 +149,29 @@ impl Automaton {
     async fn read_description(&mut self) {
         info!("Reading description...");
         self.counters.increment("read_description");
+
+        let cookie_value = self.cookie.clone().unwrap();
+
+        match run_read_desc(self.http_client.clone(),cookie_value).await {
+            Ok(connected)=>{
+                self.connected = Option::from(connected);
+                self.state = State::Connected
+            }
+            Err(e)=>{
+                error!("Error during initialization: {}", e);
+                self.logoff().await;
+                self.state = State::Idle
+            }
+        }
+
         self.state = State::Ready;
     }
 
     async fn read_values(&mut self) {
         info!("Reading values...");
         self.counters.increment("read_values");
+
+        let cookie_value = self.cookie.clone().unwrap();
 
         let value = Value {
             id: 125,

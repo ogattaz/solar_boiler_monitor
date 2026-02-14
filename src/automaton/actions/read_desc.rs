@@ -1,4 +1,8 @@
-pub fn run_read_desc() -> Result<(), String> {
+use crate::automaton::client::HttpClient;
+
+pub async fn run_read_desc(http_client:HttpClient,  cookie_value:String) -> Result<bool, String> {
+
+
     // Logique spécifique
-    Ok(())
+    Ok(true)
 }

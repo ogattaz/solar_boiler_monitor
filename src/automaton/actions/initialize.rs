@@ -7,7 +7,11 @@ pub async fn run_initialize(http_client:HttpClient) -> Result<String, String> {
 
     match http_client.get("/", headers).await {
         Ok(response) => {
-            debug!("Response status: {}", response.status());
+            let status = response.status();
+            debug!("Response status: {}", status);
+            if (status!=200){
+                return Err(format!("http status code: {}", status));
+            }
 
             match http_client.get_cookie("/").await {
                 Ok(cookie) => {
