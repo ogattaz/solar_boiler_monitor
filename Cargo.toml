@@ -20,6 +20,10 @@ axum = "0.8.8"
 hyper = "1.8.1"
 futures = "0.3.31"
 oneshot = "0.1.13"
+quick-xml = { version = "0.39.0", features = ["serialize"] }
+base64 = "0.22.1"
+html-escape = "0.2.13"
+thiserror = "2.0.18"
 
 
 [[test]]

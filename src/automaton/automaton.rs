@@ -1,10 +1,15 @@
+use std::collections::HashMap;
 use super::counters::Counters;
 use super::state::{Event, State};
 use crate::config::MonitorConfig;
 use crate::data::Value;
-use log::info;
+use log::{error, info};
+use tokio::runtime::Runtime;
 use tokio::sync::{mpsc, watch};
 use tokio::time::{sleep, Duration, Instant};
+use crate::automaton::actions::{run_initialize, run_login};
+use crate::automaton::client::HttpClient;
+use crate::automaton::xml_utils::{encode_value, VarDescriptions};
 
 pub struct Automaton {
     pub state: State,
@@ -12,17 +17,31 @@ pub struct Automaton {
     pub start_time: Instant,
     sender: mpsc::Sender<Value>,
     config: MonitorConfig,
+    http_client: HttpClient,
+    cookie:Option<String>,
+    connected:Option<bool>,
+    var_descriptions: Option<VarDescriptions>,
 }
 
 impl Automaton {
     pub fn new(sender: mpsc::Sender<Value>, config: MonitorConfig) -> Self {
         info!("New Automate");
+
+        // e.g. http://192.168.0.125
+        let boiler_base_url = format!("http://{}",config.boiler_hostname);
+        let boiler_id = encode_value(config.boiler_id.as_str());
+        let http_client = HttpClient::new(boiler_base_url, boiler_id,10);
+
         Automaton {
             state: State::Created,
             counters: Counters::new(),
             start_time: Instant::now(),
             sender,
             config,
+            http_client,
+            cookie:None,
+            connected:None,
+            var_descriptions: None,
         }
     }
 
@@ -91,16 +110,38 @@ impl Automaton {
         self.state = State::Tested;
     }
 
+    // get the cookie
     async fn initialize(&mut self) {
         info!("Initializing...");
         self.counters.increment("initialize");
-        self.state = State::Initialized;
+
+        match run_initialize(self.http_client.clone()).await {
+            Ok(ookie_value)=>{
+                self.cookie = Option::from(ookie_value);
+                self.state = State::Initialized
+            }
+            Err(e)=>{
+                error!("Error during initialization: {}", e);
+                self.state = State::Idle
+            }
+        }
     }
 
     async fn logging(&mut self) {
         info!("Logging...");
         self.counters.increment("logging");
-        self.state = State::Connected;
+
+        match run_login(self.http_client.clone(),self.config.user_id.clone(),self.config.read_password()).await {
+            Ok(connected)=>{
+                self.connected = Option::from(connected);
+                self.state = State::Connected
+            }
+            Err(e)=>{
+                error!("Error during initialization: {}", e);
+                self.logoff().await;
+                self.state = State::Idle
+            }
+        }
     }
 
     async fn read_description(&mut self) {
@@ -128,5 +169,24 @@ impl Automaton {
         info!("Logoff...");
         self.counters.increment("logoff");
         self.state = State::Idle;
+    }
+
+    pub fn ping (&self){
+        info!("Ping...");
+
+        let rt = Runtime::new().unwrap(); // Crée un runtime Tokio
+        rt.block_on(async {
+
+            let headers = HttpClient::create_headers("text/plain", None);
+
+            match self.http_client.get("/",headers).await{
+                Ok(response)=>{
+                    info!("Ping OK. status=[{:?}]", response.status().to_string())
+                }
+                Err(e)=>{
+                    error!("Failed to ping: {:?}", e);
+                }
+            }
+        });
     }
 }
